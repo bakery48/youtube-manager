@@ -91,6 +91,17 @@ body {
     align-items: center;
 }
 
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.menu-toggle {
+    display: none;
+    font-size: 1.5rem;
+}
+
 .search-input {
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
@@ -775,6 +786,11 @@ body {
 
     .header-actions {
         gap: var(--spacing-sm);
+    }
+
+    /* ハンバーガーメニューを表示 */
+    .menu-toggle {
+        display: flex;
     }
 
     /* 検索バーを非表示 */

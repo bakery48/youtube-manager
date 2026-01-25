@@ -138,6 +138,9 @@ function initializeUI() {
     // チャンネル管理モーダルのボタン
     document.getElementById('manageChannelsBtn').addEventListener('click', openManageChannelsModal);
     document.getElementById('closeManageChannelsBtn').addEventListener('click', closeAllModals);
+
+    // ハンバーガーメニュー
+    document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
 }
 
 // ===== フォルダ関連 =====
@@ -910,3 +913,8 @@ function deleteChannel(channelId) {
     }
 }
 
+// ===== サイドバー開閉 =====
+function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    sidebar.classList.toggle('active');
+}
