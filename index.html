@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Channel Manager</title>
+    <meta name="description" content="YouTubeの登録チャンネルをフォルダで管理するアプリ">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- ヘッダー -->
+    <header class="header">
+        <div class="header-content">
+            <h1 class="logo">📺 YouTube Manager</h1>
+            <div class="header-actions">
+                <input type="text" id="searchInput" class="search-input" placeholder="動画を検索...">
+                <div id="userInfo" class="user-info" style="display: none;">
+                    <img id="userAvatar" class="user-avatar" src="" alt="User">
+                    <span id="userName" class="user-name"></span>
+                    <button id="logoutBtn" class="btn-secondary btn-small">ログアウト</button>
+                </div>
+                <button id="loginBtn" class="btn-primary" style="display: none;">Googleでログイン</button>
+                <button id="settingsBtn" class="icon-btn" title="設定">⚙️</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <div class="main-container">
+        <!-- サイドバー -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>フォルダ</h2>
+                <button id="addFolderBtn" class="icon-btn" title="フォルダを追加">➕</button>
+            </div>
+            <div id="folderList" class="folder-list">
+                <!-- フォルダがここに表示される -->
+            </div>
+            <div class="sidebar-footer">
+                <button id="addChannelBtn" class="btn-primary">チャンネルを追加</button>
+            </div>
+        </aside>
+
+        <!-- メインエリア -->
+        <main class="content">
+            <div class="content-header">
+                <h2 id="currentFolderName">すべての動画</h2>
+                <div class="content-actions">
+                    <button id="refreshBtn" class="btn-secondary">🔄 更新</button>
+                    <select id="sortSelect" class="sort-select">
+                        <option value="date-desc">新しい順</option>
+                        <option value="date-asc">古い順</option>
+                        <option value="channel">チャンネル順</option>
+                    </select>
+                    <div class="view-toggle">
+                        <button id="viewGrid" class="view-btn active" title="グリッド表示">⊞</button>
+                        <button id="viewList" class="view-btn" title="リスト表示">☰</button>
+                    </div>
+                </div>
+            </div>
+            <div id="videoGrid" class="video-grid">
+                <!-- 動画カードがここに表示される -->
+            </div>
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <p>まだ動画がありません</p>
+                <p class="empty-hint">チャンネルを追加して始めましょう!</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- モーダル: フォルダ追加/編集 -->
+    <div id="folderModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="folderModalTitle">フォルダを追加</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label for="folderNameInput">フォルダ名</label>
+                <input type="text" id="folderNameInput" placeholder="例: ゲーム実況">
+                <label for="folderColorInput">カラー</label>
+                <div class="color-picker">
+                    <input type="color" id="folderColorInput" value="#6366f1">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelFolderBtn" class="btn-secondary">キャンセル</button>
+                <button id="saveFolderBtn" class="btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- モーダル: チャンネル追加 -->
+    <div id="channelModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>チャンネルを追加</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <label for="channelUrlInput">チャンネルURL または チャンネルID</label>
+                <input type="text" id="channelUrlInput" placeholder="https://www.youtube.com/@channelname">
+                <label for="channelFolderSelect">フォルダを選択</label>
+                <select id="channelFolderSelect">
+                    <option value="">未分類</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelChannelBtn" class="btn-secondary">キャンセル</button>
+                <button id="saveChannelBtn" class="btn-primary">追加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- モーダル: 設定 -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>設定</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <h4 class="settings-section-title">Google OAuth 2.0 設定</h4>
+                <label for="clientIdInput">クライアントID</label>
+                <input type="text" id="clientIdInput" placeholder="xxxxxxxxxx.apps.googleusercontent.com">
+                <p class="hint">
+                    <a href="https://console.cloud.google.com/apis/credentials" target="_blank">
+                        Google Cloud Console
+                    </a>
+                    でOAuth 2.0クライアントIDを作成してください
+                </p>
+
+                <h4 class="settings-section-title">YouTube Data API 設定</h4>
+                <label for="apiKeyInput">YouTube Data API キー</label>
+                <input type="text" id="apiKeyInput" placeholder="AIza...">
+                <p class="hint">
+                    <a href="https://console.cloud.google.com/apis/credentials" target="_blank">
+                        Google Cloud Console
+                    </a>
+                    でAPIキーを取得してください
+                </p>
+
+                <h4 class="settings-section-title">動画取得設定</h4>
+                <label for="maxResultsInput">取得する動画数(チャンネルごと)</label>
+                <input type="number" id="maxResultsInput" value="10" min="1" max="50">
+
+                <div class="info-box">
+                    <p>💡 <strong>自動同期について</strong></p>
+                    <p>Googleアカウントでログインすると、YouTubeの登録チャンネルが自動的に取得されます。</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelSettingsBtn" class="btn-secondary">キャンセル</button>
+                <button id="saveSettingsBtn" class="btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
