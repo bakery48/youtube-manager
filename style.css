@@ -763,24 +763,158 @@ body {
 }
 
 @media (max-width: 768px) {
+
+    /* ヘッダー */
+    .header {
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+
+    .logo {
+        font-size: 1.2rem;
+    }
+
+    .header-actions {
+        gap: var(--spacing-sm);
+    }
+
+    /* 検索バーを非表示 */
+    .search-input {
+        display: none;
+    }
+
+    /* ユーザー情報を簡略化 */
+    .user-info {
+        padding: var(--spacing-xs) var(--spacing-sm);
+        gap: var(--spacing-sm);
+    }
+
+    .user-name {
+        display: none;
+    }
+
+    .user-avatar {
+        width: 28px;
+        height: 28px;
+    }
+
+    /* サイドバーを非表示(デフォルト) */
     .sidebar {
         position: fixed;
         left: -280px;
-        top: 73px;
-        height: calc(100vh - 73px);
+        top: 57px;
+        height: calc(100vh - 57px);
         z-index: 99;
         transition: left var(--transition-base);
+        box-shadow: var(--shadow-lg);
     }
 
     .sidebar.active {
         left: 0;
     }
 
-    .video-grid {
-        grid-template-columns: 1fr;
+    /* メインコンテンツ */
+    .main-container {
+        height: calc(100vh - 57px);
     }
 
-    .search-input {
-        width: 200px;
+    .content {
+        padding: var(--spacing-md);
+        width: 100%;
+    }
+
+    .content-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-md);
+    }
+
+    .content-header h2 {
+        font-size: 1.5rem;
+    }
+
+    .content-actions {
+        width: 100%;
+        justify-content: space-between;
+        flex-wrap: wrap;
+    }
+
+    /* 動画グリッド */
+    .video-grid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-md);
+    }
+
+    /* ボタンのサイズ調整 */
+    .btn-primary,
+    .btn-secondary {
+        font-size: 0.85rem;
+        padding: var(--spacing-sm);
+    }
+
+    /* モーダル */
+    .modal-content {
+        width: 95%;
+        max-width: none;
+    }
+
+    .modal-large {
+        width: 95%;
+        max-width: none;
+    }
+
+    /* チャンネル管理 */
+    .channel-item {
+        flex-wrap: wrap;
+    }
+
+    .channel-folder-select {
+        width: 100%;
+        min-width: auto;
+    }
+
+    .channel-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
+
+@media (max-width: 480px) {
+
+    /* さらに小さい画面用 */
+    .logo {
+        font-size: 1rem;
+    }
+
+    .content {
+        padding: var(--spacing-sm);
+    }
+
+    .content-header h2 {
+        font-size: 1.25rem;
+    }
+
+    .view-toggle {
+        display: none;
+    }
+
+    .sort-select {
+        font-size: 0.8rem;
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+
+    .video-card {
+        border-radius: var(--radius-md);
+    }
+
+    .video-info {
+        padding: var(--spacing-sm);
+    }
+
+    .video-title {
+        font-size: 0.9rem;
+    }
+
+    .video-channel {
+        font-size: 0.8rem;
     }
 }
