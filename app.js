@@ -17,6 +17,8 @@ const APP_DATA = {
 };
 
 // ===== 初期化 =====
+let currentSortType = 'date-desc'; // デフォルトは新しい順
+
 document.addEventListener('DOMContentLoaded', () => {
     loadData();
     initializeUI();
@@ -470,6 +472,19 @@ function renderVideos() {
         return;
     }
 
+    // ソートを適用
+    switch (currentSortType) {
+        case 'date-desc':
+            videos.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+            break;
+        case 'date-asc':
+            videos.sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt));
+            break;
+        case 'channel':
+            videos.sort((a, b) => a.channelName.localeCompare(b.channelName));
+            break;
+    }
+
     videoGrid.style.display = 'grid';
     emptyState.style.display = 'none';
     videoGrid.innerHTML = '';
@@ -559,20 +574,7 @@ function filterVideos(query) {
 }
 
 function sortVideos(sortType) {
-    let videos = getVideosInFolder(currentFolder);
-
-    switch (sortType) {
-        case 'date-desc':
-            videos.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-            break;
-        case 'date-asc':
-            videos.sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt));
-            break;
-        case 'channel':
-            videos.sort((a, b) => a.channelName.localeCompare(b.channelName));
-            break;
-    }
-
+    currentSortType = sortType;
     renderVideos();
 }
 
