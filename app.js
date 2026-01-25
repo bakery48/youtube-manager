@@ -132,6 +132,10 @@ function initializeUI() {
     // 設定モーダルのボタン
     document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
     document.getElementById('cancelSettingsBtn').addEventListener('click', closeAllModals);
+
+    // チャンネル管理モーダルのボタン
+    document.getElementById('manageChannelsBtn').addEventListener('click', openManageChannelsModal);
+    document.getElementById('closeManageChannelsBtn').addEventListener('click', closeAllModals);
 }
 
 // ===== フォルダ関連 =====
@@ -812,5 +816,95 @@ function openSettingsModal() {
     document.getElementById('apiKeyInput').value = APP_DATA.settings.apiKey;
     document.getElementById('maxResultsInput').value = APP_DATA.settings.maxResults;
     modal.classList.add('active');
+}
+
+// ===== チャンネル管理モーダル =====
+function openManageChannelsModal() {
+    const modal = document.getElementById('manageChannelsModal');
+    renderChannelList();
+    modal.classList.add('active');
+}
+
+function renderChannelList() {
+    const container = document.getElementById('channelListContainer');
+    container.innerHTML = '';
+
+    if (APP_DATA.channels.length === 0) {
+        container.innerHTML = '<p class="empty-hint">まだチャンネルが登録されていません</p>';
+        return;
+    }
+
+    APP_DATA.channels.forEach(channel => {
+        const channelItem = document.createElement('div');
+        channelItem.className = 'channel-item';
+
+        // チャンネルの動画数を取得
+        const videoCount = APP_DATA.videos.filter(v => v.channelId === channel.id).length;
+
+        // 現在のフォルダ名を取得
+        const currentFolder = APP_DATA.folders.find(f => f.id === channel.folderId);
+        const folderName = currentFolder ? currentFolder.name : '未分類';
+
+        channelItem.innerHTML = `
+            <img src="${channel.thumbnail}" alt="${channel.name}" class="channel-thumbnail">
+            <div class="channel-info">
+                <div class="channel-name">${channel.name}</div>
+                <div class="channel-stats">動画: ${videoCount}件 | フォルダ: ${folderName}</div>
+            </div>
+            <select class="channel-folder-select" data-channel-id="${channel.id}">
+                <option value="">未分類</option>
+            </select>
+            <div class="channel-actions">
+                <button class="icon-btn" onclick="deleteChannel('${channel.id}')" title="削除">🗑️</button>
+            </div>
+        `;
+
+        // フォルダオプションを追加
+        const select = channelItem.querySelector('.channel-folder-select');
+        APP_DATA.folders.forEach(folder => {
+            if (!folder.isDefault) {
+                const option = document.createElement('option');
+                option.value = folder.id;
+                option.textContent = folder.name;
+                if (channel.folderId === folder.id) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            }
+        });
+
+        // フォルダ変更イベント
+        select.addEventListener('change', (e) => {
+            changeChannelFolder(channel.id, e.target.value);
+        });
+
+        container.appendChild(channelItem);
+    });
+}
+
+function changeChannelFolder(channelId, folderId) {
+    const channel = APP_DATA.channels.find(c => c.id === channelId);
+    if (channel) {
+        channel.folderId = folderId;
+        saveData();
+        renderFolders();
+        renderChannelList();
+
+        // 現在のフォルダ表示を更新
+        if (currentFolder !== 'all' && currentFolder !== 'favorites') {
+            renderVideos();
+        }
+    }
+}
+
+function deleteChannel(channelId) {
+    if (confirm('このチャンネルを削除しますか?\n(動画データも削除されます)')) {
+        APP_DATA.channels = APP_DATA.channels.filter(c => c.id !== channelId);
+        APP_DATA.videos = APP_DATA.videos.filter(v => v.channelId !== channelId);
+        saveData();
+        renderFolders();
+        renderVideos();
+        renderChannelList();
+    }
 }
 

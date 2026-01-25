@@ -657,6 +657,85 @@ body {
     color: var(--text-primary);
 }
 
+/* ===== チャンネル管理モーダル ===== */
+.modal-large {
+    max-width: 800px;
+}
+
+.channel-list-container {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.channel-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-md);
+    transition: all var(--transition-base);
+}
+
+.channel-item:hover {
+    background: var(--bg-hover);
+}
+
+.channel-thumbnail {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.channel-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.channel-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: var(--spacing-xs);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.channel-stats {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.channel-folder-select {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    min-width: 150px;
+    cursor: pointer;
+    transition: all var(--transition-base);
+}
+
+.channel-folder-select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.channel-folder-select:hover {
+    border-color: var(--accent-primary);
+}
+
+.channel-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+
 /* ===== スクロールバー ===== */
 ::-webkit-scrollbar {
     width: 8px;
