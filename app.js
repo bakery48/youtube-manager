@@ -141,6 +141,26 @@ function initializeUI() {
 
     // ハンバーガーメニュー
     document.getElementById('menuToggle').addEventListener('click', toggleSidebar);
+
+    // チャンネル同期ボタン
+    document.getElementById('syncChannelsBtn').addEventListener('click', async () => {
+        if (!APP_DATA.auth.accessToken) {
+            alert('先にGoogleアカウントでログインしてください');
+            return;
+        }
+
+        const btn = document.getElementById('syncChannelsBtn');
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '🔄 同期中...';
+
+        try {
+            await fetchSubscriptions();
+        } finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }
+    });
 }
 
 // ===== フォルダ関連 =====
@@ -706,8 +726,14 @@ async function fetchSubscriptions() {
 
         const data = await response.json();
 
-        if (!data.items) {
-            alert('登録チャンネルの取得に失敗しました');
+        if (data.error) {
+            console.error('API Error:', data.error);
+            alert(`エラーが発生しました: ${data.error.message}`);
+            return;
+        }
+
+        if (!data.items || data.items.length === 0) {
+            alert('登録チャンネルが見つかりませんでした。\n(ブランドアカウントを使用している可能性があります)');
             return;
         }
 
