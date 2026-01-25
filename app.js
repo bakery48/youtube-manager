@@ -401,7 +401,7 @@ async function fetchChannelInfo(channelId) {
         channelId = searchData.items[0].snippet.channelId;
     }
 
-    const url = `https://www.googleapis.com/youtube/v3/channels?part=snippet&id=${channelId}&key=${apiKey}`;
+    const url = `https://www.googleapis.com/youtube/v3/channels?part=snippet,contentDetails&id=${channelId}&key=${apiKey}`;
     const response = await fetch(url);
     const data = await response.json();
 
@@ -413,7 +413,8 @@ async function fetchChannelInfo(channelId) {
     return {
         id: channelId,
         title: channel.snippet.title,
-        thumbnail: channel.snippet.thumbnails.default.url
+        thumbnail: channel.snippet.thumbnails.default.url,
+        uploadsPlaylistId: channel.contentDetails.relatedPlaylists.uploads
     };
 }
 
@@ -421,7 +422,27 @@ async function fetchChannelVideos(channelId) {
     const apiKey = APP_DATA.settings.apiKey;
     const maxResults = APP_DATA.settings.maxResults;
 
-    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&order=date&type=video&maxResults=${maxResults}&key=${apiKey}`;
+    let channel = APP_DATA.channels.find(c => c.id === channelId);
+
+    // アップロードリストIDがない場合（古いデータや初回取得時）は取得する
+    if (!channel.uploadsPlaylistId) {
+        try {
+            const info = await fetchChannelInfo(channelId);
+            channel.uploadsPlaylistId = info.uploadsPlaylistId;
+            // ついでに最新の情報に更新
+            channel.name = info.title;
+            channel.thumbnail = info.thumbnail;
+            saveData();
+        } catch (e) {
+            console.error('Failed to update channel info:', e);
+            return;
+        }
+    }
+
+    const uploadsId = channel.uploadsPlaylistId;
+
+    // playlistItems APIを使用 (コスト1)
+    const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${uploadsId}&maxResults=${maxResults}&key=${apiKey}`;
     const response = await fetch(url);
     const data = await response.json();
 
@@ -429,7 +450,8 @@ async function fetchChannelVideos(channelId) {
         return;
     }
 
-    const videoIds = data.items.map(item => item.id.videoId).join(',');
+    // 動画詳細(時間など)を取得 (コスト1)
+    const videoIds = data.items.map(item => item.snippet.resourceId.videoId).join(',');
     const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${videoIds}&key=${apiKey}`;
     const detailsResponse = await fetch(detailsUrl);
     const detailsData = await detailsResponse.json();
@@ -466,11 +488,19 @@ async function refreshVideos() {
 
     const refreshBtn = document.getElementById('refreshBtn');
     refreshBtn.disabled = true;
-    refreshBtn.textContent = '🔄 更新中...';
+    const originalText = '🔄 更新';
 
     try {
+        let count = 0;
+        const total = APP_DATA.channels.length;
+
         for (const channel of APP_DATA.channels) {
+            count++;
+            refreshBtn.textContent = `更新中... (${count}/${total})`;
+
             await fetchChannelVideos(channel.id);
+            // API制限対策: 200ms待機
+            await new Promise(resolve => setTimeout(resolve, 200));
         }
         renderVideos();
         alert('動画を更新しました');
@@ -478,7 +508,7 @@ async function refreshVideos() {
         alert('動画の更新に失敗しました: ' + error.message);
     } finally {
         refreshBtn.disabled = false;
-        refreshBtn.textContent = '🔄 更新';
+        refreshBtn.textContent = originalText;
     }
 }
 
