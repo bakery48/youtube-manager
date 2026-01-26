@@ -589,16 +589,32 @@ function createVideoCard(video) {
 }
 
 function openVideo(videoId) {
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const url = `https://www.youtube.com/watch?v=${videoId}`;
+    const ua = navigator.userAgent;
+    const isIOS = /iPhone|iPad|iPod/i.test(ua);
+    const isAndroid = /Android/i.test(ua);
 
-    if (isMobile) {
-        // モバイルの場合は現在のタブで遷移(アプリ連携されやすい)
-        // iOS/Androidの設定によってはアプリで開く
-        window.location.href = url;
+    if (isIOS || isAndroid) {
+        // アプリ起動を試みるURLスキーム
+        const appUrl = isIOS
+            ? `youtube://watch?v=${videoId}`
+            : `vnd.youtube:${videoId}`;
+
+        // Web版のURL(フォールバック用)
+        const webUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+        // まずアプリ起動を試みる
+        window.location.href = appUrl;
+
+        // アプリが入っていない場合などのフォールバック
+        // 500ms後にまだページにいるならWeb版へ遷移
+        setTimeout(() => {
+            if (!document.hidden) {
+                window.location.href = webUrl;
+            }
+        }, 500);
     } else {
         // PCの場合は新しいタブで開く
-        window.open(url, '_blank');
+        window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
     }
 
     markAsWatched(videoId);
