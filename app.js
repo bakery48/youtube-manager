@@ -600,18 +600,12 @@ function openVideo(videoId) {
             : `vnd.youtube:${videoId}`;
 
         // Web版のURL(フォールバック用)
-        const webUrl = `https://www.youtube.com/watch?v=${videoId}`;
+        // const webUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
-        // まずアプリ起動を試みる
+        // アプリ起動を試みる
         window.location.href = appUrl;
 
-        // アプリが入っていない場合などのフォールバック
-        // 500ms後にまだページにいるならWeb版へ遷移
-        setTimeout(() => {
-            if (!document.hidden) {
-                window.location.href = webUrl;
-            }
-        }, 500);
+        // 自動フォールバックは削除 (アプリが入っているのにWeb版も開いてしまうため)
     } else {
         // PCの場合は新しいタブで開く
         window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
