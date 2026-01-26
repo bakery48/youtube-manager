@@ -589,7 +589,18 @@ function createVideoCard(video) {
 }
 
 function openVideo(videoId) {
-    window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const url = `https://www.youtube.com/watch?v=${videoId}`;
+
+    if (isMobile) {
+        // モバイルの場合は現在のタブで遷移(アプリ連携されやすい)
+        // iOS/Androidの設定によってはアプリで開く
+        window.location.href = url;
+    } else {
+        // PCの場合は新しいタブで開く
+        window.open(url, '_blank');
+    }
+
     markAsWatched(videoId);
 }
 
