@@ -955,3 +955,17 @@ body {
     color: var(--accent-primary);
     text-decoration: underline;
 }
+
+/* ===== ドラッグ&ドロップ ===== */
+.folder-item.over {
+    border: 2px dashed var(--accent-primary);
+    background: var(--bg-hover);
+}
+
+.folder-item[draggable="true"] {
+    cursor: grab;
+}
+
+.folder-item[draggable="true"]:active {
+    cursor: grabbing;
+}

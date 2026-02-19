@@ -181,14 +181,30 @@ function initializeUI() {
 // ===== フォルダ関連 =====
 let currentFolder = 'all';
 let editingFolderId = null;
+let dragSrcEl = null; // ドラッグ中の要素
 
 function renderFolders() {
     const folderList = document.getElementById('folderList');
     folderList.innerHTML = '';
 
-    APP_DATA.folders.forEach(folder => {
+    APP_DATA.folders.forEach((folder, index) => {
         const folderEl = document.createElement('div');
         folderEl.className = `folder-item ${currentFolder === folder.id ? 'active' : ''}`;
+
+        // デフォルトフォルダ以外はドラッグ可能にする
+        if (!folder.isDefault) {
+            folderEl.draggable = true;
+            folderEl.dataset.index = index; // 配列インデックスを保持
+
+            // ドラッグイベントリスナー
+            folderEl.addEventListener('dragstart', handleDragStart);
+            folderEl.addEventListener('dragenter', handleDragEnter);
+            folderEl.addEventListener('dragover', handleDragOver);
+            folderEl.addEventListener('dragleave', handleDragLeave);
+            folderEl.addEventListener('drop', handleDrop);
+            folderEl.addEventListener('dragend', handleDragEnd);
+        }
+
         folderEl.innerHTML = `
             <div class="folder-color" style="background: ${folder.color}"></div>
             <div class="folder-name">${folder.name}</div>
@@ -200,6 +216,8 @@ function renderFolders() {
                 </div>
             ` : ''}
         `;
+
+        // クリックイベント（ドラッグ終了時に発火しないように少し工夫が必要だが、icon-btn除外で対応）
         folderEl.addEventListener('click', (e) => {
             if (!e.target.classList.contains('icon-btn')) {
                 selectFolder(folder.id);
@@ -210,6 +228,60 @@ function renderFolders() {
 
     // チャンネルフォルダセレクトも更新
     updateChannelFolderSelect();
+}
+
+// ドラッグアンドドロップのハンドラ
+function handleDragStart(e) {
+    dragSrcEl = this;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', this.dataset.index);
+    this.classList.add('dragging');
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function handleDragEnter(e) {
+    this.classList.add('over');
+}
+
+function handleDragLeave(e) {
+    this.classList.remove('over');
+}
+
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+
+    if (dragSrcEl !== this) {
+        const srcIndex = parseInt(e.dataTransfer.getData('text/plain'));
+        const targetIndex = parseInt(this.dataset.index);
+
+        // 配列の並び替え
+        const folderToMove = APP_DATA.folders[srcIndex];
+        APP_DATA.folders.splice(srcIndex, 1); // 元の位置から削除
+        APP_DATA.folders.splice(targetIndex, 0, folderToMove); // 新しい位置に挿入
+
+        saveData();
+        renderFolders();
+    }
+    return false;
+}
+
+function handleDragEnd(e) {
+    this.classList.remove('over');
+    this.classList.remove('dragging');
+
+    // 全ての.overを削除（念のため）
+    document.querySelectorAll('.folder-item').forEach(item => {
+        item.classList.remove('over');
+    });
 }
 
 function selectFolder(folderId) {
