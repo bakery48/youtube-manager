@@ -820,14 +820,17 @@ body {
         position: fixed;
         left: -280px;
         top: 57px;
-        /* dvh(dynamic viewport height)を使用してアドレスバーの影響を軽減。非対応ブラウザ用にvhも残す */
-        height: calc(100vh - 57px);
-        height: calc(100dvh - 57px);
+        bottom: 0;
+        /* 高さ計算をやめて下端に固定 */
+        height: auto;
+        /* 高さは自動計算 */
         z-index: 99;
         transition: left var(--transition-base);
         box-shadow: var(--shadow-lg);
         display: flex;
         flex-direction: column;
+        background: var(--bg-secondary);
+        /* 背景色を明示 */
     }
 
     .sidebar.active {
@@ -838,14 +841,18 @@ body {
         overflow-y: auto;
         flex: 1;
         min-height: 0;
-        /* Flexboxの子要素でスクロールさせるための重要プロパティ */
         -webkit-overflow-scrolling: touch;
-        /* iOSでの慣性スクロール */
+        padding-bottom: 80px;
+        /* 下の方にあるアイテムが隠れないように余白を追加 */
+        overscroll-behavior: contain;
+        /* スクロール連鎖防止 */
     }
 
     .sidebar-footer {
         flex-shrink: 0;
-        /* フッターがつぶれないようにする */
+        z-index: 10;
+        background: var(--bg-secondary);
+        border-top: 1px solid var(--border-color);
     }
 
     /* メインコンテンツ */
