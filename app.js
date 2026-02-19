@@ -969,29 +969,58 @@ function openSettingsModal() {
 // ===== チャンネル管理モーダル =====
 function openManageChannelsModal() {
     const modal = document.getElementById('manageChannelsModal');
-    renderChannelList();
+    const filterSelect = document.getElementById('manageChannelsFilter');
+
+    // フィルタの選択肢を生成
+    filterSelect.innerHTML = `
+        <option value="all">すべて表示</option>
+        <option value="uncategorized">未分類のみ</option>
+    `;
+
+    APP_DATA.folders.forEach(folder => {
+        if (!folder.isDefault) {
+            const option = document.createElement('option');
+            option.value = folder.id;
+            option.textContent = folder.name;
+            filterSelect.appendChild(option);
+        }
+    });
+
+    // フィルタ変更時のイベントリスナー
+    // (重複追加を防ぐために一度削除するか、ここで再定義せず初回だけにまかせるのがベターだが、
+    // ここではシンプルに毎回設定しても実害が少ないためこのまま記述)
+    filterSelect.onchange = () => {
+        renderChannelList(filterSelect.value);
+    };
+
+    // 初期表示は「すべて」
+    filterSelect.value = 'all';
+    renderChannelList('all');
     modal.classList.add('active');
 }
 
-function renderChannelList() {
+function renderChannelList(filterType = 'all') {
     const container = document.getElementById('channelListContainer');
     container.innerHTML = '';
 
-    if (APP_DATA.channels.length === 0) {
-        container.innerHTML = '<p class="empty-hint">まだチャンネルが登録されていません</p>';
+    // フィルタリング
+    let channelsToShow = APP_DATA.channels;
+
+    if (filterType === 'uncategorized') {
+        channelsToShow = APP_DATA.channels.filter(c => !c.folderId || c.folderId === '');
+    } else if (filterType !== 'all') {
+        channelsToShow = APP_DATA.channels.filter(c => c.folderId === filterType);
+    }
+
+    if (channelsToShow.length === 0) {
+        container.innerHTML = '<p class="empty-hint">表示するチャンネルがありません</p>';
         return;
     }
 
-    APP_DATA.channels.forEach(channel => {
+    // 更新されたチャンネルリストをレンダリング
+    channelsToShow.forEach(channel => {
         const channelItem = document.createElement('div');
         channelItem.className = 'channel-item';
-
-        // チャンネルの動画数を取得
-        const videoCount = APP_DATA.videos.filter(v => v.channelId === channel.id).length;
-
-        // 現在のフォルダ名を取得
-        const currentFolder = APP_DATA.folders.find(f => f.id === channel.folderId);
-        const folderName = currentFolder ? currentFolder.name : '未分類';
 
         channelItem.innerHTML = `
             <img src="${channel.thumbnail}" alt="${channel.name}" class="channel-thumbnail">
@@ -1018,7 +1047,24 @@ function renderChannelList() {
 
         // フォルダ変更イベント
         select.addEventListener('change', (e) => {
-            changeChannelFolder(channel.id, e.target.value);
+            const newFolderId = e.target.value;
+            const targetChannel = APP_DATA.channels.find(c => c.id === channel.id);
+            if (targetChannel) {
+                targetChannel.folderId = newFolderId;
+                saveData();
+                renderFolders(); // サイドバーの数値を更新
+                renderVideos();  // 動画リストを再描画
+
+                // フィルタ適用中の場合、リストから消すかどうかの判定（UX的には消さない方が編集しやすいかも？）
+                // ここでは「移動したらリストから消える」挙動の方が「整理した感」が出るので、再レンダリングする
+                const currentFilter = document.getElementById('manageChannelsFilter').value;
+                if (currentFilter !== 'all' && currentFilter !== newFolderId) {
+                    renderChannelList(currentFilter);
+                } else {
+                    // フィルタが'all'の場合、または同じフォルダに移動した場合は、現在のフィルタで再レンダリング
+                    renderChannelList(currentFilter);
+                }
+            }
         });
 
         container.appendChild(channelItem);
@@ -1031,12 +1077,7 @@ function changeChannelFolder(channelId, folderId) {
         channel.folderId = folderId;
         saveData();
         renderFolders();
-        renderChannelList();
-
-        // 現在のフォルダ表示を更新
-        if (currentFolder !== 'all' && currentFolder !== 'favorites') {
-            renderVideos();
-        }
+        renderVideos();
     }
 }
 
