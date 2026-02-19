@@ -974,16 +974,11 @@ function renderChannelList() {
 
         channelItem.innerHTML = `
             <img src="${channel.thumbnail}" alt="${channel.name}" class="channel-thumbnail">
-            <div class="channel-info">
-                <div class="channel-name">${channel.name}</div>
-                <div class="channel-stats">動画: ${videoCount}件 | フォルダ: ${folderName}</div>
-            </div>
-            <select class="channel-folder-select" data-channel-id="${channel.id}">
+            <div class="channel-name" style="flex: 1; margin: 0 10px;">${channel.name}</div>
+            <select class="channel-folder-select" data-channel-id="${channel.id}" style="width: 140px;">
                 <option value="">未分類</option>
             </select>
-            <div class="channel-actions">
-                <button class="icon-btn" onclick="deleteChannel('${channel.id}')" title="削除">🗑️</button>
-            </div>
+            <button class="icon-btn" onclick="deleteChannel('${channel.id}')" title="削除" style="margin-left: 5px;">🗑️</button>
         `;
 
         // フォルダオプションを追加
