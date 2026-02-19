@@ -820,10 +820,14 @@ body {
         position: fixed;
         left: -280px;
         top: 57px;
+        /* dvh(dynamic viewport height)を使用してアドレスバーの影響を軽減。非対応ブラウザ用にvhも残す */
         height: calc(100vh - 57px);
+        height: calc(100dvh - 57px);
         z-index: 99;
         transition: left var(--transition-base);
         box-shadow: var(--shadow-lg);
+        display: flex;
+        flex-direction: column;
     }
 
     .sidebar.active {
@@ -832,6 +836,16 @@ body {
 
     .folder-list {
         overflow-y: auto;
+        flex: 1;
+        min-height: 0;
+        /* Flexboxの子要素でスクロールさせるための重要プロパティ */
+        -webkit-overflow-scrolling: touch;
+        /* iOSでの慣性スクロール */
+    }
+
+    .sidebar-footer {
+        flex-shrink: 0;
+        /* フッターがつぶれないようにする */
     }
 
     /* メインコンテンツ */
