@@ -819,18 +819,21 @@ body {
     .sidebar {
         position: fixed;
         left: -280px;
-        top: 57px;
-        bottom: 0;
-        /* 高さ計算をやめて下端に固定 */
-        height: auto;
-        /* 高さは自動計算 */
+        top: 0;
+        /* 画面最上部から開始 */
+        height: 100vh;
+        /* フォールバック */
+        height: 100dvh;
+        /* アドレスバー考慮の高さ */
+        padding-top: 60px;
+        /* ヘッダーの裏に隠れないように余白確保 */
         z-index: 99;
+        /* ヘッダー(100)の下 */
         transition: left var(--transition-base);
         box-shadow: var(--shadow-lg);
         display: flex;
         flex-direction: column;
         background: var(--bg-secondary);
-        /* 背景色を明示 */
     }
 
     .sidebar.active {
@@ -838,14 +841,13 @@ body {
     }
 
     .folder-list {
-        overflow-y: auto;
+        overflow-y: auto !important;
+        /* 強制的にスクロール有効化 */
         flex: 1;
         min-height: 0;
         -webkit-overflow-scrolling: touch;
         padding-bottom: 80px;
-        /* 下の方にあるアイテムが隠れないように余白を追加 */
         overscroll-behavior: contain;
-        /* スクロール連鎖防止 */
     }
 
     .sidebar-footer {
