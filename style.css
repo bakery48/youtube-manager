@@ -830,6 +830,10 @@ body {
         left: 0;
     }
 
+    .folder-list {
+        overflow-y: auto;
+    }
+
     /* メインコンテンツ */
     .main-container {
         height: calc(100vh - 57px);
