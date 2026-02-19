@@ -766,31 +766,70 @@ async function fetchSubscriptions() {
     if (!APP_DATA.auth.accessToken) return;
 
     try {
-        const response = await fetch(
-            'https://www.googleapis.com/youtube/v3/subscriptions?part=snippet&mine=true&maxResults=50',
-            {
+        let allSubscriptions = [];
+        let nextPageToken = null;
+        let pageCount = 0;
+        let apiTotalResults = 0; // APIが返す総数
+
+        // ページネーションで全チャンネルを取得
+        do {
+            pageCount++;
+
+            // order=alphabeticalを追加して全件取得漏れを防ぐ
+            const baseUrl = 'https://www.googleapis.com/youtube/v3/subscriptions?part=snippet&mine=true&order=alphabetical&maxResults=50';
+            const url = nextPageToken
+                ? `${baseUrl}&pageToken=${nextPageToken}`
+                : baseUrl;
+
+            console.log(`ページ ${pageCount} をリクエスト中... URL: ${url}`);
+
+            const response = await fetch(url, {
                 headers: {
                     'Authorization': `Bearer ${APP_DATA.auth.accessToken}`
                 }
+            });
+
+            const data = await response.json();
+
+            if (data.error) {
+                console.error('API Error:', data.error);
+                alert(`エラーが発生しました: ${data.error.message}`);
+                return;
             }
-        );
 
-        const data = await response.json();
+            if (!data.items || data.items.length === 0) {
+                if (pageCount === 1) {
+                    alert('登録チャンネルが見つかりませんでした。\n(ブランドアカウントを使用している可能性があります)');
+                }
+                break;
+            }
 
-        if (data.error) {
-            console.error('API Error:', data.error);
-            alert(`エラーが発生しました: ${data.error.message}`);
-            return;
-        }
+            // 初回ページで総数を取得
+            if (pageCount === 1 && data.pageInfo) {
+                apiTotalResults = data.pageInfo.totalResults;
+                console.log(`API報告の総件数: ${apiTotalResults}`);
+            }
 
-        if (!data.items || data.items.length === 0) {
-            alert('登録チャンネルが見つかりませんでした。\n(ブランドアカウントを使用している可能性があります)');
-            return;
-        }
+            // 今回取得したチャンネル名をログに出力（デバッグ用）
+            console.log(`ページ ${pageCount}: ${data.items.length}件取得`);
 
+            // 次のトークン確認
+            console.log(`NextToken: ${data.nextPageToken ? 'あり' : 'なし'}`);
+
+            allSubscriptions = allSubscriptions.concat(data.items);
+            nextPageToken = data.nextPageToken;
+
+            // API制限対策: 次のページを取得する前に少し待機
+            if (nextPageToken) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+        } while (nextPageToken);
+
+        const beforeCount = APP_DATA.channels.length;
         let addedCount = 0;
 
-        for (const item of data.items) {
+        for (const item of allSubscriptions) {
             const channelId = item.snippet.resourceId.channelId;
 
             // 既に追加済みかチェック
@@ -812,12 +851,18 @@ async function fetchSubscriptions() {
         saveData();
         renderFolders();
 
+        const totalCount = APP_DATA.channels.length;
+        const message = `処理完了!\n` +
+            `- API報告の総登録数: ${apiTotalResults}件\n` +
+            `- 実際に取得できた数: ${allSubscriptions.length}件\n` +
+            `- アプリ内の登録数: ${totalCount}件\n` +
+            `(APIページ数: ${pageCount})`;
+
+        alert(message);
+
         if (addedCount > 0) {
-            alert(`${addedCount}個のチャンネルを追加しました!`);
             // 動画を取得
             refreshVideos();
-        } else {
-            alert('新しいチャンネルはありませんでした');
         }
     } catch (error) {
         console.error('Failed to fetch subscriptions:', error);
