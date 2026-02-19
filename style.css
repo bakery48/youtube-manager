@@ -936,3 +936,22 @@ body {
         font-size: 0.8rem;
     }
 }
+
+/* ===== チャンネルリンク（管理画面用） ===== */
+.channel-link {
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: color var(--transition-fast);
+    /* flex: 1; margin等はhtml側でインラインスタイルが優先されるが念のため */
+    flex: 1;
+    margin: 0 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+
+.channel-link:hover {
+    color: var(--accent-primary);
+    text-decoration: underline;
+}

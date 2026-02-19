@@ -1003,8 +1003,6 @@ function renderChannelList(filterType = 'all') {
     const container = document.getElementById('channelListContainer');
     container.innerHTML = '';
 
-    console.log(`[Debug] renderChannelList called with filter: "${filterType}"`);
-
     // フィルタリング
     let channelsToShow = APP_DATA.channels;
 
@@ -1013,8 +1011,6 @@ function renderChannelList(filterType = 'all') {
     } else if (filterType !== 'all') {
         channelsToShow = APP_DATA.channels.filter(c => c.folderId === filterType);
     }
-
-    console.log(`[Debug] Total channels: ${APP_DATA.channels.length}, Filtered: ${channelsToShow.length}`);
 
     if (channelsToShow.length === 0) {
         container.innerHTML = '<p class="empty-hint">表示するチャンネルがありません</p>';
@@ -1028,7 +1024,9 @@ function renderChannelList(filterType = 'all') {
 
         channelItem.innerHTML = `
             <img src="${channel.thumbnail}" alt="${channel.name}" class="channel-thumbnail">
-            <div class="channel-name" style="flex: 1; margin: 0 10px;">${channel.name}</div>
+            <a href="https://www.youtube.com/channel/${channel.id}" target="_blank" class="channel-name channel-link" title="YouTubeで開く">
+                ${channel.name}
+            </a>
             <select class="channel-folder-select" data-channel-id="${channel.id}" style="width: 140px;">
                 <option value="">未分類</option>
             </select>
