@@ -45,10 +45,24 @@ function loadData() {
                 APP_DATA.auth = { accessToken: null, expiresAt: null, userInfo: null };
             }
         }
+        // 既存データに「未分類」がない場合は追加
+        if (!APP_DATA.folders.find(f => f.id === 'uncategorized')) {
+            // お気に入りの前（最後から2番目）に挿入
+            const favoritesIndex = APP_DATA.folders.findIndex(f => f.id === 'favorites');
+            const insertIndex = favoritesIndex >= 0 ? favoritesIndex : APP_DATA.folders.length;
+
+            APP_DATA.folders.splice(insertIndex, 0, {
+                id: 'uncategorized',
+                name: '未分類',
+                color: '#9ca3af',
+                isDefault: true
+            });
+        }
     } else {
         // デフォルトフォルダを作成
         APP_DATA.folders = [
             { id: 'all', name: 'すべて', color: '#6366f1', isDefault: true },
+            { id: 'uncategorized', name: '未分類', color: '#9ca3af', isDefault: true },
             { id: 'favorites', name: 'お気に入り', color: '#f59e0b', isDefault: true }
         ];
         saveData();
@@ -67,6 +81,7 @@ function saveData() {
     localStorage.setItem('youtubeManagerData', JSON.stringify(data));
 }
 
+// ===== UI初期化 =====
 // ===== UI初期化 =====
 function initializeUI() {
     // フォルダ追加ボタン
@@ -211,6 +226,12 @@ function getVideosInFolder(folderId) {
         return APP_DATA.videos;
     } else if (folderId === 'favorites') {
         return APP_DATA.videos.filter(v => v.isFavorite);
+    } else if (folderId === 'uncategorized') {
+        // 未分類のチャンネル（folderIdが空または未定義）を取得
+        const uncategorizedChannels = APP_DATA.channels
+            .filter(c => !c.folderId)
+            .map(c => c.id);
+        return APP_DATA.videos.filter(v => uncategorizedChannels.includes(v.channelId));
     } else {
         const channelsInFolder = APP_DATA.channels
             .filter(c => c.folderId === folderId)
