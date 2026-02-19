@@ -1003,6 +1003,8 @@ function renderChannelList(filterType = 'all') {
     const container = document.getElementById('channelListContainer');
     container.innerHTML = '';
 
+    console.log(`[Debug] renderChannelList called with filter: "${filterType}"`);
+
     // フィルタリング
     let channelsToShow = APP_DATA.channels;
 
@@ -1011,6 +1013,8 @@ function renderChannelList(filterType = 'all') {
     } else if (filterType !== 'all') {
         channelsToShow = APP_DATA.channels.filter(c => c.folderId === filterType);
     }
+
+    console.log(`[Debug] Total channels: ${APP_DATA.channels.length}, Filtered: ${channelsToShow.length}`);
 
     if (channelsToShow.length === 0) {
         container.innerHTML = '<p class="empty-hint">表示するチャンネルがありません</p>';
