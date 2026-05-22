@@ -1089,8 +1089,18 @@ function removeTagFromChannel(channelId, tagId) {
     saveData();
 }
 
+function buildFolderTagHtml(channel) {
+    if (!channel.folderId) return '';
+    const folder = APP_DATA.folders.find(f => f.id === channel.folderId && !f.isDefault);
+    if (!folder) return '';
+    return `<span class="tag-badge" style="background:${folder.color}20;color:${folder.color};border:1px solid ${folder.color}50">` +
+        `${escapeHtml(folder.name)}<button class="tag-remove folder-tag-remove" data-channel-id="${channel.id}" title="フォルダから外す">×</button>` +
+        `</span>`;
+}
+
 function buildTagBadgesHtml(channel) {
-    return (channel.tags || [])
+    const folderHtml = buildFolderTagHtml(channel);
+    const tagsHtml = (channel.tags || [])
         .map(tagId => APP_DATA.tags.find(t => t.id === tagId))
         .filter(Boolean)
         .map(tag =>
@@ -1098,6 +1108,21 @@ function buildTagBadgesHtml(channel) {
             `${escapeHtml(tag.name)}<button class="tag-remove" data-channel-id="${channel.id}" data-tag-id="${tag.id}" title="削除">×</button>` +
             `</span>`
         ).join('');
+    return folderHtml + tagsHtml;
+}
+
+function buildTagSelectOptions() {
+    const userFolders = APP_DATA.folders.filter(f => !f.isDefault);
+    const folderOptions = userFolders.map(f =>
+        `<option value="folder:${f.id}">${escapeHtml(f.name)}</option>`
+    ).join('');
+    const tagOptions = APP_DATA.tags.map(t =>
+        `<option value="tag:${t.id}">${escapeHtml(t.name)}</option>`
+    ).join('');
+    let html = '<option value="">＋ 追加...</option>';
+    if (folderOptions) html += `<optgroup label="フォルダ">${folderOptions}</optgroup>`;
+    if (tagOptions) html += `<optgroup label="タグ">${tagOptions}</optgroup>`;
+    return html;
 }
 
 function refreshTagsArea(channelId) {
@@ -1106,9 +1131,9 @@ function refreshTagsArea(channelId) {
     if (channel && tagsContainer) {
         tagsContainer.innerHTML = buildTagBadgesHtml(channel);
     }
-    // 全datalistを最新タグで更新
-    document.querySelectorAll('.tag-datalist').forEach(dl => {
-        dl.innerHTML = APP_DATA.tags.map(t => `<option value="${escapeHtml(t.name)}">`).join('');
+    const selectOptions = buildTagSelectOptions();
+    document.querySelectorAll('.tag-select').forEach(sel => {
+        sel.innerHTML = selectOptions;
     });
 }
 
@@ -1161,66 +1186,77 @@ function renderChannelList(filterType = 'all') {
         return;
     }
 
-    const allTagOptions = APP_DATA.tags.map(t => `<option value="${escapeHtml(t.name)}">`).join('');
-
     channelsToShow.forEach(channel => {
         const channelItem = document.createElement('div');
         channelItem.className = 'channel-item';
 
-        const taglistId = 'taglist-' + channel.id;
         channelItem.innerHTML = `
             <img src="${channel.thumbnail}" alt="${escapeHtml(channel.name)}" class="channel-thumbnail">
             <div class="channel-body">
                 <div class="channel-top-row">
                     <a href="https://www.youtube.com/channel/${channel.id}" target="_blank"
                        class="channel-name channel-link" title="YouTubeで開く">${escapeHtml(channel.name)}</a>
-                    <select class="channel-folder-select" data-channel-id="${channel.id}" style="width:140px;">
-                        <option value="">未分類</option>
-                    </select>
-                    <button class="icon-btn" onclick="deleteChannel('${channel.id}')" title="削除" style="margin-left:5px;">🗑️</button>
+                    <button class="icon-btn" onclick="deleteChannel('${channel.id}')" title="削除">🗑️</button>
                 </div>
                 <div class="channel-tags-row">
                     <div class="channel-tags" id="channel-tags-${channel.id}">${buildTagBadgesHtml(channel)}</div>
-                    <input type="text" class="tag-input" placeholder="＋ タグ追加"
-                        data-channel-id="${channel.id}" list="${taglistId}" autocomplete="off">
-                    <datalist id="${taglistId}" class="tag-datalist">${allTagOptions}</datalist>
+                    <select class="tag-select" data-channel-id="${channel.id}">
+                        ${buildTagSelectOptions()}
+                    </select>
+                    <input type="text" class="tag-input" placeholder="新規タグ..."
+                        data-channel-id="${channel.id}" autocomplete="off">
                 </div>
             </div>
         `;
 
-        // フォルダオプションを追加
-        const select = channelItem.querySelector('.channel-folder-select');
-        APP_DATA.folders.forEach(folder => {
-            if (!folder.isDefault) {
-                const option = document.createElement('option');
-                option.value = folder.id;
-                option.textContent = folder.name;
-                if (channel.folderId === folder.id) option.selected = true;
-                select.appendChild(option);
-            }
-        });
-
-        // フォルダ変更イベント
-        select.addEventListener('change', (e) => {
-            const targetChannel = APP_DATA.channels.find(c => c.id === channel.id);
-            if (targetChannel) {
-                targetChannel.folderId = e.target.value;
-                saveData();
-                renderFolders();
-                renderVideos();
-                renderChannelList(document.getElementById('manageChannelsFilter').value);
-            }
-        });
-
-        // タグ削除（イベント委譲）
+        // タグ・フォルダ削除（イベント委譲）
         channelItem.addEventListener('click', (e) => {
             const btn = e.target.closest('.tag-remove');
             if (!btn) return;
-            removeTagFromChannel(btn.dataset.channelId, btn.dataset.tagId);
-            refreshTagsArea(btn.dataset.channelId);
+            const chId = btn.dataset.channelId;
+            if (btn.classList.contains('folder-tag-remove')) {
+                const ch = APP_DATA.channels.find(c => c.id === chId);
+                if (ch) {
+                    ch.folderId = '';
+                    saveData();
+                    renderFolders();
+                    renderVideos();
+                    refreshTagsArea(chId);
+                }
+            } else {
+                removeTagFromChannel(chId, btn.dataset.tagId);
+                refreshTagsArea(chId);
+            }
         });
 
-        // タグ追加（Enter キー）
+        // ドロップダウンで既存タグ・フォルダを追加
+        const tagSelect = channelItem.querySelector('.tag-select');
+        tagSelect.addEventListener('change', (e) => {
+            const val = e.target.value;
+            const chId = e.target.dataset.channelId;
+            if (!val) return;
+            if (val.startsWith('folder:')) {
+                const folderId = val.slice(7);
+                const ch = APP_DATA.channels.find(c => c.id === chId);
+                if (ch) {
+                    ch.folderId = folderId;
+                    saveData();
+                    renderFolders();
+                    renderVideos();
+                    refreshTagsArea(chId);
+                }
+            } else if (val.startsWith('tag:')) {
+                const tagId = val.slice(4);
+                const tag = APP_DATA.tags.find(t => t.id === tagId);
+                if (tag) {
+                    addTagToChannel(chId, tag.name);
+                    refreshTagsArea(chId);
+                }
+            }
+            e.target.value = '';
+        });
+
+        // テキスト入力で新規タグを作成（Enter）
         const tagInput = channelItem.querySelector('.tag-input');
         tagInput.addEventListener('keydown', (e) => {
             if (e.key !== 'Enter') return;

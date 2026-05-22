@@ -705,6 +705,11 @@ body {
     gap: var(--spacing-sm);
 }
 
+.channel-top-row .channel-name {
+    flex: 1;
+    min-width: 0;
+}
+
 .channel-tags-row {
     display: flex;
     flex-wrap: wrap;
@@ -746,6 +751,25 @@ body {
     opacity: 1;
 }
 
+.tag-select {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 2px 6px;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    cursor: pointer;
+    outline: none;
+    transition: all var(--transition-fast);
+    max-width: 130px;
+}
+
+.tag-select:hover,
+.tag-select:focus {
+    border-color: var(--accent-primary);
+    color: var(--text-primary);
+}
+
 .tag-input {
     background: var(--bg-secondary);
     border: 1px dashed var(--border-color);
@@ -753,7 +777,7 @@ body {
     padding: 2px 10px;
     color: var(--text-secondary);
     font-size: 0.75rem;
-    width: 100px;
+    width: 90px;
     outline: none;
     transition: all var(--transition-fast);
 }
@@ -765,7 +789,7 @@ body {
 .tag-input:focus {
     border-color: var(--accent-primary);
     color: var(--text-primary);
-    width: 130px;
+    width: 120px;
 }
 
 .channel-item:hover {
