@@ -3,6 +3,7 @@ const APP_DATA = {
     folders: [],
     channels: [],
     videos: [],
+    tags: [],
     settings: {
         clientId: '',
         apiKey: '',
@@ -35,6 +36,7 @@ function loadData() {
         APP_DATA.folders = parsed.folders || [];
         APP_DATA.channels = parsed.channels || [];
         APP_DATA.videos = parsed.videos || [];
+        APP_DATA.tags = parsed.tags || [];
         APP_DATA.settings = parsed.settings || { clientId: '', apiKey: '', maxResults: 10 };
         APP_DATA.watchedVideos = new Set(parsed.watchedVideos || []);
         APP_DATA.auth = parsed.auth || { accessToken: null, expiresAt: null, userInfo: null };
@@ -74,6 +76,7 @@ function saveData() {
         folders: APP_DATA.folders,
         channels: APP_DATA.channels,
         videos: APP_DATA.videos,
+        tags: APP_DATA.tags,
         settings: APP_DATA.settings,
         watchedVideos: Array.from(APP_DATA.watchedVideos),
         auth: APP_DATA.auth
@@ -1038,6 +1041,77 @@ function openSettingsModal() {
     modal.classList.add('active');
 }
 
+// ===== タグ管理 =====
+const TAG_COLORS = [
+    '#6366f1', '#10b981', '#f59e0b', '#ef4444', '#3b82f6',
+    '#ec4899', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16'
+];
+
+function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+}
+
+function getOrCreateTag(name) {
+    const trimmed = name.trim();
+    if (!trimmed) return null;
+    let tag = APP_DATA.tags.find(t => t.name.toLowerCase() === trimmed.toLowerCase());
+    if (!tag) {
+        tag = {
+            id: 'tag_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+            name: trimmed,
+            color: TAG_COLORS[APP_DATA.tags.length % TAG_COLORS.length]
+        };
+        APP_DATA.tags.push(tag);
+    }
+    saveData();
+    return tag;
+}
+
+function addTagToChannel(channelId, tagName) {
+    const channel = APP_DATA.channels.find(c => c.id === channelId);
+    if (!channel) return null;
+    if (!channel.tags) channel.tags = [];
+    const tag = getOrCreateTag(tagName);
+    if (!tag) return null;
+    if (!channel.tags.includes(tag.id)) {
+        channel.tags.push(tag.id);
+        saveData();
+    }
+    return tag;
+}
+
+function removeTagFromChannel(channelId, tagId) {
+    const channel = APP_DATA.channels.find(c => c.id === channelId);
+    if (!channel || !channel.tags) return;
+    channel.tags = channel.tags.filter(id => id !== tagId);
+    saveData();
+}
+
+function buildTagBadgesHtml(channel) {
+    return (channel.tags || [])
+        .map(tagId => APP_DATA.tags.find(t => t.id === tagId))
+        .filter(Boolean)
+        .map(tag =>
+            `<span class="tag-badge" style="background:${tag.color}20;color:${tag.color};border:1px solid ${tag.color}50">` +
+            `${escapeHtml(tag.name)}<button class="tag-remove" data-channel-id="${channel.id}" data-tag-id="${tag.id}" title="削除">×</button>` +
+            `</span>`
+        ).join('');
+}
+
+function refreshTagsArea(channelId) {
+    const channel = APP_DATA.channels.find(c => c.id === channelId);
+    const tagsContainer = document.getElementById('channel-tags-' + channelId);
+    if (channel && tagsContainer) {
+        tagsContainer.innerHTML = buildTagBadgesHtml(channel);
+    }
+    // 全datalistを最新タグで更新
+    document.querySelectorAll('.tag-datalist').forEach(dl => {
+        dl.innerHTML = APP_DATA.tags.map(t => `<option value="${escapeHtml(t.name)}">`).join('');
+    });
+}
+
 // ===== チャンネル管理モーダル =====
 function openManageChannelsModal() {
     const modal = document.getElementById('manageChannelsModal');
@@ -1075,9 +1149,7 @@ function renderChannelList(filterType = 'all') {
     const container = document.getElementById('channelListContainer');
     container.innerHTML = '';
 
-    // フィルタリング
     let channelsToShow = APP_DATA.channels;
-
     if (filterType === 'uncategorized') {
         channelsToShow = APP_DATA.channels.filter(c => !c.folderId || c.folderId === '');
     } else if (filterType !== 'all') {
@@ -1089,20 +1161,31 @@ function renderChannelList(filterType = 'all') {
         return;
     }
 
-    // 更新されたチャンネルリストをレンダリング
+    const allTagOptions = APP_DATA.tags.map(t => `<option value="${escapeHtml(t.name)}">`).join('');
+
     channelsToShow.forEach(channel => {
         const channelItem = document.createElement('div');
         channelItem.className = 'channel-item';
 
+        const taglistId = 'taglist-' + channel.id;
         channelItem.innerHTML = `
-            <img src="${channel.thumbnail}" alt="${channel.name}" class="channel-thumbnail">
-            <a href="https://www.youtube.com/channel/${channel.id}" target="_blank" class="channel-name channel-link" title="YouTubeで開く">
-                ${channel.name}
-            </a>
-            <select class="channel-folder-select" data-channel-id="${channel.id}" style="width: 140px;">
-                <option value="">未分類</option>
-            </select>
-            <button class="icon-btn" onclick="deleteChannel('${channel.id}')" title="削除" style="margin-left: 5px;">🗑️</button>
+            <img src="${channel.thumbnail}" alt="${escapeHtml(channel.name)}" class="channel-thumbnail">
+            <div class="channel-body">
+                <div class="channel-top-row">
+                    <a href="https://www.youtube.com/channel/${channel.id}" target="_blank"
+                       class="channel-name channel-link" title="YouTubeで開く">${escapeHtml(channel.name)}</a>
+                    <select class="channel-folder-select" data-channel-id="${channel.id}" style="width:140px;">
+                        <option value="">未分類</option>
+                    </select>
+                    <button class="icon-btn" onclick="deleteChannel('${channel.id}')" title="削除" style="margin-left:5px;">🗑️</button>
+                </div>
+                <div class="channel-tags-row">
+                    <div class="channel-tags" id="channel-tags-${channel.id}">${buildTagBadgesHtml(channel)}</div>
+                    <input type="text" class="tag-input" placeholder="＋ タグ追加"
+                        data-channel-id="${channel.id}" list="${taglistId}" autocomplete="off">
+                    <datalist id="${taglistId}" class="tag-datalist">${allTagOptions}</datalist>
+                </div>
+            </div>
         `;
 
         // フォルダオプションを追加
@@ -1112,33 +1195,41 @@ function renderChannelList(filterType = 'all') {
                 const option = document.createElement('option');
                 option.value = folder.id;
                 option.textContent = folder.name;
-                if (channel.folderId === folder.id) {
-                    option.selected = true;
-                }
+                if (channel.folderId === folder.id) option.selected = true;
                 select.appendChild(option);
             }
         });
 
         // フォルダ変更イベント
         select.addEventListener('change', (e) => {
-            const newFolderId = e.target.value;
             const targetChannel = APP_DATA.channels.find(c => c.id === channel.id);
             if (targetChannel) {
-                targetChannel.folderId = newFolderId;
+                targetChannel.folderId = e.target.value;
                 saveData();
-                renderFolders(); // サイドバーの数値を更新
-                renderVideos();  // 動画リストを再描画
-
-                // フィルタ適用中の場合、リストから消すかどうかの判定（UX的には消さない方が編集しやすいかも？）
-                // ここでは「移動したらリストから消える」挙動の方が「整理した感」が出るので、再レンダリングする
-                const currentFilter = document.getElementById('manageChannelsFilter').value;
-                if (currentFilter !== 'all' && currentFilter !== newFolderId) {
-                    renderChannelList(currentFilter);
-                } else {
-                    // フィルタが'all'の場合、または同じフォルダに移動した場合は、現在のフィルタで再レンダリング
-                    renderChannelList(currentFilter);
-                }
+                renderFolders();
+                renderVideos();
+                renderChannelList(document.getElementById('manageChannelsFilter').value);
             }
+        });
+
+        // タグ削除（イベント委譲）
+        channelItem.addEventListener('click', (e) => {
+            const btn = e.target.closest('.tag-remove');
+            if (!btn) return;
+            removeTagFromChannel(btn.dataset.channelId, btn.dataset.tagId);
+            refreshTagsArea(btn.dataset.channelId);
+        });
+
+        // タグ追加（Enter キー）
+        const tagInput = channelItem.querySelector('.tag-input');
+        tagInput.addEventListener('keydown', (e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            const val = e.target.value.trim();
+            if (!val) return;
+            addTagToChannel(e.target.dataset.channelId, val);
+            e.target.value = '';
+            refreshTagsArea(e.target.dataset.channelId);
         });
 
         container.appendChild(channelItem);
