@@ -1137,6 +1137,72 @@ function refreshTagsArea(channelId) {
     });
 }
 
+function initChannelListEvents() {
+    const container = document.getElementById('channelListContainer');
+    if (container._eventsReady) return;
+    container._eventsReady = true;
+
+    // タグ・フォルダバッジの削除
+    container.addEventListener('click', (e) => {
+        const btn = e.target.closest('.tag-remove');
+        if (!btn) return;
+        const chId = btn.dataset.channelId;
+        if (btn.classList.contains('folder-tag-remove')) {
+            const ch = APP_DATA.channels.find(c => c.id === chId);
+            if (ch) {
+                ch.folderId = '';
+                saveData();
+                renderFolders();
+                renderVideos();
+                refreshTagsArea(chId);
+            }
+        } else {
+            removeTagFromChannel(chId, btn.dataset.tagId);
+            refreshTagsArea(chId);
+        }
+    });
+
+    // ドロップダウンで既存タグ・フォルダを追加
+    container.addEventListener('change', (e) => {
+        const sel = e.target.closest('.tag-select');
+        if (!sel) return;
+        const val = sel.value;
+        const chId = sel.dataset.channelId;
+        if (!val) return;
+        if (val.startsWith('folder:')) {
+            const folderId = val.slice(7);
+            const ch = APP_DATA.channels.find(c => c.id === chId);
+            if (ch) {
+                ch.folderId = folderId;
+                saveData();
+                renderFolders();
+                renderVideos();
+                refreshTagsArea(chId);
+            }
+        } else if (val.startsWith('tag:')) {
+            const tagId = val.slice(4);
+            const tag = APP_DATA.tags.find(t => t.id === tagId);
+            if (tag) {
+                addTagToChannel(chId, tag.name);
+                refreshTagsArea(chId);
+            }
+        }
+        sel.value = '';
+    });
+
+    // テキスト入力で新規タグを作成（Enter）
+    container.addEventListener('keydown', (e) => {
+        const input = e.target.closest('.tag-input');
+        if (!input || e.key !== 'Enter') return;
+        e.preventDefault();
+        const val = input.value.trim();
+        if (!val) return;
+        addTagToChannel(input.dataset.channelId, val);
+        input.value = '';
+        refreshTagsArea(input.dataset.channelId);
+    });
+}
+
 // ===== チャンネル管理モーダル =====
 function openManageChannelsModal() {
     const modal = document.getElementById('manageChannelsModal');
@@ -1167,6 +1233,7 @@ function openManageChannelsModal() {
     // 初期表示は「すべて」
     filterSelect.value = 'all';
     renderChannelList('all');
+    initChannelListEvents();
     modal.classList.add('active');
 }
 
@@ -1209,64 +1276,6 @@ function renderChannelList(filterType = 'all') {
             </div>
         `;
 
-        // タグ・フォルダ削除（イベント委譲）
-        channelItem.addEventListener('click', (e) => {
-            const btn = e.target.closest('.tag-remove');
-            if (!btn) return;
-            const chId = btn.dataset.channelId;
-            if (btn.classList.contains('folder-tag-remove')) {
-                const ch = APP_DATA.channels.find(c => c.id === chId);
-                if (ch) {
-                    ch.folderId = '';
-                    saveData();
-                    renderFolders();
-                    renderVideos();
-                    refreshTagsArea(chId);
-                }
-            } else {
-                removeTagFromChannel(chId, btn.dataset.tagId);
-                refreshTagsArea(chId);
-            }
-        });
-
-        // ドロップダウンで既存タグ・フォルダを追加
-        const tagSelect = channelItem.querySelector('.tag-select');
-        tagSelect.addEventListener('change', (e) => {
-            const val = e.target.value;
-            const chId = e.target.dataset.channelId;
-            if (!val) return;
-            if (val.startsWith('folder:')) {
-                const folderId = val.slice(7);
-                const ch = APP_DATA.channels.find(c => c.id === chId);
-                if (ch) {
-                    ch.folderId = folderId;
-                    saveData();
-                    renderFolders();
-                    renderVideos();
-                    refreshTagsArea(chId);
-                }
-            } else if (val.startsWith('tag:')) {
-                const tagId = val.slice(4);
-                const tag = APP_DATA.tags.find(t => t.id === tagId);
-                if (tag) {
-                    addTagToChannel(chId, tag.name);
-                    refreshTagsArea(chId);
-                }
-            }
-            e.target.value = '';
-        });
-
-        // テキスト入力で新規タグを作成（Enter）
-        const tagInput = channelItem.querySelector('.tag-input');
-        tagInput.addEventListener('keydown', (e) => {
-            if (e.key !== 'Enter') return;
-            e.preventDefault();
-            const val = e.target.value.trim();
-            if (!val) return;
-            addTagToChannel(e.target.dataset.channelId, val);
-            e.target.value = '';
-            refreshTagsArea(e.target.dataset.channelId);
-        });
 
         container.appendChild(channelItem);
     });
