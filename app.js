@@ -3,7 +3,6 @@ const APP_DATA = {
     folders: [],
     channels: [],
     videos: [],
-    tags: [],
     settings: {
         clientId: '',
         apiKey: '',
@@ -36,7 +35,6 @@ function loadData() {
         APP_DATA.folders = parsed.folders || [];
         APP_DATA.channels = parsed.channels || [];
         APP_DATA.videos = parsed.videos || [];
-        APP_DATA.tags = parsed.tags || [];
         APP_DATA.settings = parsed.settings || { clientId: '', apiKey: '', maxResults: 10 };
         APP_DATA.watchedVideos = new Set(parsed.watchedVideos || []);
         APP_DATA.auth = parsed.auth || { accessToken: null, expiresAt: null, userInfo: null };
@@ -47,12 +45,26 @@ function loadData() {
                 APP_DATA.auth = { accessToken: null, expiresAt: null, userInfo: null };
             }
         }
+        // 既存のtagsをフォルダに統合（マイグレーション）
+        if (parsed.tags && parsed.tags.length > 0) {
+            parsed.tags.forEach(tag => {
+                if (!APP_DATA.folders.find(f => f.id === tag.id)) {
+                    APP_DATA.folders.push({ ...tag, isDefault: false });
+                }
+            });
+        }
+        // folderId → tags マイグレーション
+        APP_DATA.channels.forEach(ch => {
+            if (!ch.tags) ch.tags = [];
+            if (ch.folderId) {
+                if (!ch.tags.includes(ch.folderId)) ch.tags.push(ch.folderId);
+                delete ch.folderId;
+            }
+        });
         // 既存データに「未分類」がない場合は追加
         if (!APP_DATA.folders.find(f => f.id === 'uncategorized')) {
-            // お気に入りの前（最後から2番目）に挿入
             const favoritesIndex = APP_DATA.folders.findIndex(f => f.id === 'favorites');
             const insertIndex = favoritesIndex >= 0 ? favoritesIndex : APP_DATA.folders.length;
-
             APP_DATA.folders.splice(insertIndex, 0, {
                 id: 'uncategorized',
                 name: '未分類',
@@ -76,7 +88,6 @@ function saveData() {
         folders: APP_DATA.folders,
         channels: APP_DATA.channels,
         videos: APP_DATA.videos,
-        tags: APP_DATA.tags,
         settings: APP_DATA.settings,
         watchedVideos: Array.from(APP_DATA.watchedVideos),
         auth: APP_DATA.auth
@@ -302,16 +313,16 @@ function getVideosInFolder(folderId) {
     } else if (folderId === 'favorites') {
         return APP_DATA.videos.filter(v => v.isFavorite);
     } else if (folderId === 'uncategorized') {
-        // 未分類のチャンネル（folderIdが空または未定義）を取得
+        const userTagIds = APP_DATA.folders.filter(f => !f.isDefault).map(f => f.id);
         const uncategorizedChannels = APP_DATA.channels
-            .filter(c => !c.folderId)
+            .filter(c => !c.tags || !c.tags.some(t => userTagIds.includes(t)))
             .map(c => c.id);
         return APP_DATA.videos.filter(v => uncategorizedChannels.includes(v.channelId));
     } else {
-        const channelsInFolder = APP_DATA.channels
-            .filter(c => c.folderId === folderId)
+        const channelsInTag = APP_DATA.channels
+            .filter(c => c.tags && c.tags.includes(folderId))
             .map(c => c.id);
-        return APP_DATA.videos.filter(v => channelsInFolder.includes(v.channelId));
+        return APP_DATA.videos.filter(v => channelsInTag.includes(v.channelId));
     }
 }
 
@@ -324,11 +335,11 @@ function openFolderModal(folderId = null) {
 
     if (folderId) {
         const folder = APP_DATA.folders.find(f => f.id === folderId);
-        title.textContent = 'フォルダを編集';
+        title.textContent = 'タグを編集';
         nameInput.value = folder.name;
         colorInput.value = folder.color;
     } else {
-        title.textContent = 'フォルダを追加';
+        title.textContent = 'タグを追加';
         nameInput.value = '';
         colorInput.value = '#6366f1';
     }
@@ -341,7 +352,7 @@ function saveFolder() {
     const color = document.getElementById('folderColorInput').value;
 
     if (!name) {
-        alert('フォルダ名を入力してください');
+        alert('タグ名を入力してください');
         return;
     }
 
@@ -369,12 +380,10 @@ function editFolder(folderId) {
 }
 
 function deleteFolder(folderId) {
-    if (confirm('このフォルダを削除しますか?')) {
+    if (confirm('このタグを削除しますか?')) {
         APP_DATA.folders = APP_DATA.folders.filter(f => f.id !== folderId);
         APP_DATA.channels.forEach(c => {
-            if (c.folderId === folderId) {
-                c.folderId = '';
-            }
+            if (c.tags) c.tags = c.tags.filter(t => t !== folderId);
         });
         saveData();
         renderFolders();
@@ -408,7 +417,8 @@ function openChannelModal() {
 
     const modal = document.getElementById('channelModal');
     document.getElementById('channelUrlInput').value = '';
-    document.getElementById('channelFolderSelect').value = currentFolder !== 'all' && currentFolder !== 'favorites' ? currentFolder : '';
+    const isUserTag = APP_DATA.folders.find(f => f.id === currentFolder && !f.isDefault);
+    document.getElementById('channelFolderSelect').value = isUserTag ? currentFolder : '';
     modal.classList.add('active');
 }
 
@@ -439,7 +449,7 @@ async function saveChannel() {
             id: channelId,
             name: channelInfo.title,
             thumbnail: channelInfo.thumbnail,
-            folderId: folderId || ''
+            tags: folderId ? [folderId] : []
         };
 
         APP_DATA.channels.push(newChannel);
@@ -937,7 +947,7 @@ async function fetchSubscriptions() {
                 id: channelId,
                 name: item.snippet.title,
                 thumbnail: item.snippet.thumbnails.default.url,
-                folderId: ''
+                tags: []
             };
 
             APP_DATA.channels.push(newChannel);
@@ -1056,14 +1066,17 @@ function escapeHtml(str) {
 function getOrCreateTag(name) {
     const trimmed = name.trim();
     if (!trimmed) return null;
-    let tag = APP_DATA.tags.find(t => t.name.toLowerCase() === trimmed.toLowerCase());
+    const userFolders = APP_DATA.folders.filter(f => !f.isDefault);
+    let tag = userFolders.find(t => t.name.toLowerCase() === trimmed.toLowerCase());
     if (!tag) {
         tag = {
             id: 'tag_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
             name: trimmed,
-            color: TAG_COLORS[APP_DATA.tags.length % TAG_COLORS.length]
+            color: TAG_COLORS[userFolders.length % TAG_COLORS.length],
+            isDefault: false
         };
-        APP_DATA.tags.push(tag);
+        APP_DATA.folders.push(tag);
+        renderFolders();
     }
     saveData();
     return tag;
@@ -1089,40 +1102,23 @@ function removeTagFromChannel(channelId, tagId) {
     saveData();
 }
 
-function buildFolderTagHtml(channel) {
-    if (!channel.folderId) return '';
-    const folder = APP_DATA.folders.find(f => f.id === channel.folderId && !f.isDefault);
-    if (!folder) return '';
-    return `<span class="tag-badge" style="background:${folder.color}20;color:${folder.color};border:1px solid ${folder.color}50">` +
-        `${escapeHtml(folder.name)}<button class="tag-remove folder-tag-remove" data-channel-id="${channel.id}" title="フォルダから外す">×</button>` +
-        `</span>`;
-}
-
 function buildTagBadgesHtml(channel) {
-    const folderHtml = buildFolderTagHtml(channel);
-    const tagsHtml = (channel.tags || [])
-        .map(tagId => APP_DATA.tags.find(t => t.id === tagId))
+    return (channel.tags || [])
+        .map(tagId => APP_DATA.folders.find(f => f.id === tagId && !f.isDefault))
         .filter(Boolean)
         .map(tag =>
             `<span class="tag-badge" style="background:${tag.color}20;color:${tag.color};border:1px solid ${tag.color}50">` +
             `${escapeHtml(tag.name)}<button class="tag-remove" data-channel-id="${channel.id}" data-tag-id="${tag.id}" title="削除">×</button>` +
             `</span>`
         ).join('');
-    return folderHtml + tagsHtml;
 }
 
 function buildTagSelectOptions() {
-    const userFolders = APP_DATA.folders.filter(f => !f.isDefault);
-    const folderOptions = userFolders.map(f =>
-        `<option value="folder:${f.id}">${escapeHtml(f.name)}</option>`
-    ).join('');
-    const tagOptions = APP_DATA.tags.map(t =>
-        `<option value="tag:${t.id}">${escapeHtml(t.name)}</option>`
-    ).join('');
-    let html = '<option value="">＋ 追加...</option>';
-    if (folderOptions) html += `<optgroup label="フォルダ">${folderOptions}</optgroup>`;
-    if (tagOptions) html += `<optgroup label="タグ">${tagOptions}</optgroup>`;
-    return html;
+    const options = APP_DATA.folders
+        .filter(f => !f.isDefault)
+        .map(f => `<option value="${f.id}">${escapeHtml(f.name)}</option>`)
+        .join('');
+    return `<option value="">＋ 追加...</option>${options}`;
 }
 
 function refreshTagsArea(channelId) {
@@ -1142,50 +1138,28 @@ function initChannelListEvents() {
     if (container._eventsReady) return;
     container._eventsReady = true;
 
-    // タグ・フォルダバッジの削除
+    // タグバッジの削除
     container.addEventListener('click', (e) => {
         const btn = e.target.closest('.tag-remove');
         if (!btn) return;
-        const chId = btn.dataset.channelId;
-        if (btn.classList.contains('folder-tag-remove')) {
-            const ch = APP_DATA.channels.find(c => c.id === chId);
-            if (ch) {
-                ch.folderId = '';
-                saveData();
-                renderFolders();
-                renderVideos();
-                refreshTagsArea(chId);
-            }
-        } else {
-            removeTagFromChannel(chId, btn.dataset.tagId);
-            refreshTagsArea(chId);
-        }
+        removeTagFromChannel(btn.dataset.channelId, btn.dataset.tagId);
+        refreshTagsArea(btn.dataset.channelId);
+        renderFolders();
+        renderVideos();
     });
 
-    // ドロップダウンで既存タグ・フォルダを追加
+    // ドロップダウンで既存タグを追加
     container.addEventListener('change', (e) => {
         const sel = e.target.closest('.tag-select');
         if (!sel) return;
         const val = sel.value;
         const chId = sel.dataset.channelId;
         if (!val) return;
-        if (val.startsWith('folder:')) {
-            const folderId = val.slice(7);
-            const ch = APP_DATA.channels.find(c => c.id === chId);
-            if (ch) {
-                ch.folderId = folderId;
-                saveData();
-                renderFolders();
-                renderVideos();
-                refreshTagsArea(chId);
-            }
-        } else if (val.startsWith('tag:')) {
-            const tagId = val.slice(4);
-            const tag = APP_DATA.tags.find(t => t.id === tagId);
-            if (tag) {
-                addTagToChannel(chId, tag.name);
-                refreshTagsArea(chId);
-            }
+        const tag = APP_DATA.folders.find(f => f.id === val);
+        if (tag) {
+            addTagToChannel(chId, tag.name);
+            refreshTagsArea(chId);
+            renderFolders();
         }
         sel.value = '';
     });
@@ -1241,11 +1215,12 @@ function renderChannelList(filterType = 'all') {
     const container = document.getElementById('channelListContainer');
     container.innerHTML = '';
 
+    const userTagIds = APP_DATA.folders.filter(f => !f.isDefault).map(f => f.id);
     let channelsToShow = APP_DATA.channels;
     if (filterType === 'uncategorized') {
-        channelsToShow = APP_DATA.channels.filter(c => !c.folderId || c.folderId === '');
+        channelsToShow = APP_DATA.channels.filter(c => !c.tags || !c.tags.some(t => userTagIds.includes(t)));
     } else if (filterType !== 'all') {
-        channelsToShow = APP_DATA.channels.filter(c => c.folderId === filterType);
+        channelsToShow = APP_DATA.channels.filter(c => c.tags && c.tags.includes(filterType));
     }
 
     if (channelsToShow.length === 0) {
@@ -1281,10 +1256,11 @@ function renderChannelList(filterType = 'all') {
     });
 }
 
-function changeChannelFolder(channelId, folderId) {
+function changeChannelFolder(channelId, tagId) {
     const channel = APP_DATA.channels.find(c => c.id === channelId);
     if (channel) {
-        channel.folderId = folderId;
+        if (!channel.tags) channel.tags = [];
+        if (tagId && !channel.tags.includes(tagId)) channel.tags.push(tagId);
         saveData();
         renderFolders();
         renderVideos();
